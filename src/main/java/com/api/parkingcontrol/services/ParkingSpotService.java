@@ -6,6 +6,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class ParkingSpotService {
@@ -28,4 +31,15 @@ public class ParkingSpotService {
         return parkingSpotRespository.existsByApartmentAndBlock(apartment, block);
     }
 
+    public List<ParkingSpotModel> findAll() {
+        return parkingSpotRespository.findAll();
+    }
+
+    public Optional<ParkingSpotModel> findById(UUID id) {
+        return parkingSpotRespository.findById(id);
+    }
+    @Transactional
+    public void delete(ParkingSpotModel parkingSpotModel) {
+        parkingSpotRespository.delete(parkingSpotModel);
+    }
 }
