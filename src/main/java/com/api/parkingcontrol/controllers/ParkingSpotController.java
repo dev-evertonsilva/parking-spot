@@ -3,6 +3,8 @@ package com.api.parkingcontrol.controllers;
 import com.api.parkingcontrol.dtos.ParkingSpotDto;
 import com.api.parkingcontrol.models.ParkingSpotModel;
 import com.api.parkingcontrol.services.ParkingSpotService;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -24,8 +26,14 @@ public class ParkingSpotController {
     @Autowired
     ParkingSpotService parkingSpotService;
 
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
+
     @PostMapping
     public ResponseEntity<Object> saveParkingSpot(@RequestBody @Valid ParkingSpotDto parkingSpotDto){
+
+        String routingKey = "parking.v1.spot-created";
+        Message message = new Message(parkingSpotDto.toString().getBytes());
 
         if(parkingSpotService.existsByLicensePlateCar(parkingSpotDto.getLicensePlateCar())){
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Conflict: License Plate Car is already in use!");
@@ -40,7 +48,10 @@ public class ParkingSpotController {
         var parkingSpotModel = new ParkingSpotModel();
         BeanUtils.copyProperties(parkingSpotDto, parkingSpotModel);
         parkingSpotModel.setRegistrationDate(LocalDateTime.now(ZoneId.of("UTC")));
+        rabbitTemplate.send(routingKey, message);
+
         return ResponseEntity.status(HttpStatus.CREATED).body(parkingSpotService.save(parkingSpotModel));
+
     }
 
     @GetMapping
@@ -50,10 +61,13 @@ public class ParkingSpotController {
 
     @GetMapping("{id}")
     public ResponseEntity<Object> getOneParkingSpot(@PathVariable(value = "id") UUID id){
+
         Optional<ParkingSpotModel> parkingSpotModelOptional = parkingSpotService.findById(id);
+
         if(!parkingSpotModelOptional.isPresent()){
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Parking Spot not found");
         }
+
         return  ResponseEntity.status(HttpStatus.OK).body(parkingSpotModelOptional.get());
 
     }
@@ -64,21 +78,27 @@ public class ParkingSpotController {
         if(!parkingSpotModelOptional.isPresent()){
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Parking Spot not found");
         }
+
         parkingSpotService.delete(parkingSpotModelOptional.get());
+
         return ResponseEntity.status(HttpStatus.OK).body("Parking Spot deleted successfully.");
     }
 
     @PutMapping("{id}")
     public ResponseEntity<Object> updateParkingSpot(@PathVariable(value = "id")UUID id,
                                                     @RequestBody @Valid ParkingSpotDto parkingSpotDto){
+
         Optional<ParkingSpotModel> parkingSpotModelOptional = parkingSpotService.findById(id);
+
         if(!parkingSpotModelOptional.isPresent()){
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Parking Spot not found.");
         }
+
         var parkingSpotModel = new ParkingSpotModel();
         BeanUtils.copyProperties(parkingSpotDto, parkingSpotModel);
         parkingSpotModel.setId(parkingSpotModelOptional.get().getId());
         parkingSpotModel.setRegistrationDate(parkingSpotModelOptional.get().getRegistrationDate());
+
         return ResponseEntity.status(HttpStatus.OK).body(parkingSpotService.save(parkingSpotModel));
 
     }
